@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Image Location with Modern Map</title>
+
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+body { font-family: Arial; background: #f5f5f7; padding: 30px; margin:0; }
+.box { background: white; padding: 20px; max-width: 700px; margin: auto; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.2);}
+button { background: #007aff; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor:pointer;}
+#map { height: 500px; width: 100%; margin-top: 20px; border-radius: 12px; }
+.warning { color: #ff3b30; font-weight: bold; }
+.leaflet-popup-content { font-size: 14px; }
+</style>
+
+<script>
+function getLocation() {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(pos => {
+        document.getElementById("browser_lat").value = pos.coords.latitude;
+        document.getElementById("browser_lon").value = pos.coords.longitude;
+    });
+}
+</script>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body onload="getLocation()">
+
+<div class="box">
+<h2>📍 Image Location Detection with Radius</h2>
+
+<form method="POST" enctype="multipart/form-data">
+    <input type="hidden" id="browser_lat" name="browser_lat">
+    <input type="hidden" id="browser_lon" name="browser_lon">
+    <input type="file" name="image" accept="image/*">
+    <br><br>
+    <button type="submit">Upload</button>
+</form>
+
+{% if error %}
+<p class="warning">{{ error }}</p>
+{% endif %}
+
+{% if lat is not none and lon is not none %}
+<hr>
+<p><strong>Latitude:</strong> {{ lat }}</p>
+<p><strong>Longitude:</strong> {{ lon }}</p>
+<p><strong>Landmark:</strong> {{ landmark or 'N/A' }}</p>
+<p><strong>Building:</strong> {{ building or 'N/A' }}</p>
+<p><strong>Address:</strong> {{ address or 'N/A' }}</p>
+<p><strong>City:</strong> {{ city or 'N/A' }}</p>
+<p><strong>Country:</strong> {{ country or 'N/A' }}</p>
+
+{% if source == "browser_gps" %}
+<p>✅ Exact location (Browser GPS)</p>
+{% elif source == "exif_gps" %}
+<p>✅ Exact location (Image EXIF)</p>
+{% elif source == "last_known_location" %}
+<p class="warning">⚠️ Estimated location (±{{ radius }} meters, last known)</p>
+{% endif %}
+
+<div id="map"></div>
+
+<script>
+// Initialize map
+var map = L.map('map').setView([{{ lat }}, {{ lon }}], 18);
+
+// Modern tile layer
+L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png', {
+    maxZoom: 20,
+    attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'
+}).addTo(map);
+
+// Marker for location with details
+var popupContent = `
+<strong>{% if source=='last_known_location' %}Estimated{% else %}Exact{% endif %} location</strong><br>
+Latitude: {{ lat }}<br>
+Longitude: {{ lon }}<br>
+Landmark: {{ landmark or 'N/A' }}<br>
+Building: {{ building or 'N/A' }}<br>
+Address: {{ address or 'N/A' }}<br>
+City: {{ city or 'N/A' }}<br>
+Country: {{ country or 'N/A' }}
+`;
+
+L.marker([{{ lat }}, {{ lon }}]).addTo(map)
+    .bindPopup(popupContent)
+    .openPopup();
+
+// Circle around location
+{% if radius %}
+L.circle([{{ lat }}, {{ lon }}], {
+    color: {% if source=='last_known_location' %}'red'{% else %}'#007aff'{% endif %},
+    fillColor: {% if source=='last_known_location' %}'#f03'{% else %}'#007aff'{% endif %},
+    fillOpacity: 0.2,
+    radius: {{ radius }}
+}).addTo(map);
+{% endif %}
+</script>
+
+{% endif %}
+</div>
+
+</body>
+</html>
